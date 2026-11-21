@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Biblioteca Groove" />
+  <meta name="theme-color" content="#111827" />
+  <title>Biblioteca Groove</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    h1, h2 { margin-top: 0; }
+    p { color: var(--muted); line-height: 1.5; }
+    input, button {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 16px;
+      margin-top: 8px;
+    }
+    input {
+      background: #0f172a;
+      color: var(--text);
+    }
+    button {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+    .status {
+      font-size: 14px;
+      color: var(--accent);
+      margin-top: 12px;
+      word-break: break-word;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0284c7;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      display: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="app"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const SUPABASE_URL = 'COLE_AQUI_SUA_API_URL_DO_SUPABASE';
+    const SUPABASE_ANON_KEY = 'sb_publishable_eOdue8wX3bY-zCpvEQyiDA_IR5Gzr0v';
+
+    const db = (SUPABASE_URL.startsWith('http') && window.supabase)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+    }
+
+    async function signIn(e) {
+      e.preventDefault();
+      if (!db) {
+        showToast('Configure a SUPABASE_URL antes de entrar.');
+        return;
+      }
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      if (error) {
+        showToast(error.message);
+        return;
+      }
+      showToast('Sessão iniciada!');
+      await loadSessionAndData();
+    }
+
+    async function signOut() {
+      if (db) await db.auth.signOut();
+      await loadSessionAndData();
+    }
+
+    function renderLoggedOut(app) {
+      app.innerHTML = `
+        <div class="card">
+          <h1>Biblioteca Groove</h1>
+          <p>Entre com a sua conta para aceder à plataforma de estudos e ritmos.</p>
+          <form onsubmit="signIn(event)">
+            <label>E-mail</label>
+            <input id="email" type="email" required placeholder="seu@email.com" />
+            <label style="display:block;margin-top:12px;">Senha</label>
+            <input id="password" type="password" required placeholder="••••••••" />
+            <button type="submit" style="margin-top:16px;">Entrar</button>
+          </form>
+          <div class="status" id="config-status">
+            ${db ? 'Supabase ligado e pronto.' : 'Atenção: substitua COLE_AQUI_SUA_API_URL_DO_SUPABASE pela sua URL do Supabase.'}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLoggedIn(app, session) {
+      app.innerHTML = `
+        <div class="card">
+          <h2>Biblioteca Groove</h2>
+          <p>Sessão ativa: <strong>${session.user.email}</strong></p>
+          <button onclick="signOut()">Sair</button>
+        </div>
+      `;
+    }
+
+    async function loadSessionAndData() {
+      const app = document.getElementById('app');
+      if (!db) {
+        renderLoggedOut(app);
+        return;
+      }
+      const { data } = await db.auth.getSession();
+      if (data?.session) {
+        renderLoggedIn(app, data.session);
+      } else {
+        renderLoggedOut(app);
+      }
+    }
+
+    loadSessionAndData();
+  </script>
+</body>
+</html>
